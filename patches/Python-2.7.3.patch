@@ -1,0 +1,97 @@
+diff -ru -x config.guess -x config.sub original/Python-2.7.3/Modules/posixmodule.c archives/Python-2.7.3/Modules/posixmodule.c
+--- original/Python-2.7.3/Modules/posixmodule.c	2012-04-10 08:07:34.000000000 +0900
++++ archives/Python-2.7.3/Modules/posixmodule.c	2013-08-12 02:34:05.317127600 +0900
+@@ -3733,6 +3733,10 @@
+ #endif
+ #endif /* defined(HAVE_OPENPTY) || defined(HAVE_FORKPTY) || defined(HAVE_DEV_PTMX */
+ 
++#undef HAVE_OPENPTY
++#undef HAVE__GETPTY
++#undef HAVE_DEV_PTMX
++
+ #if defined(HAVE_OPENPTY) || defined(HAVE__GETPTY) || defined(HAVE_DEV_PTMX)
+ PyDoc_STRVAR(posix_openpty__doc__,
+ "openpty() -> (master_fd, slave_fd)\n\n\
+diff -ru -x config.guess -x config.sub original/Python-2.7.3/Modules/pwdmodule.c archives/Python-2.7.3/Modules/pwdmodule.c
+--- original/Python-2.7.3/Modules/pwdmodule.c	2012-04-10 08:07:34.000000000 +0900
++++ archives/Python-2.7.3/Modules/pwdmodule.c	2013-08-12 02:34:26.208562568 +0900
+@@ -78,7 +78,7 @@
+ #ifdef __VMS
+     SETS(setIndex++, "");
+ #else
+-    SETS(setIndex++, p->pw_gecos);
++    SETS(setIndex++, "");
+ #endif
+     SETS(setIndex++, p->pw_dir);
+     SETS(setIndex++, p->pw_shell);
+diff -ru -x config.guess -x config.sub original/Python-2.7.3/Modules/socketmodule.c archives/Python-2.7.3/Modules/socketmodule.c
+--- original/Python-2.7.3/Modules/socketmodule.c	2012-04-10 08:07:34.000000000 +0900
++++ archives/Python-2.7.3/Modules/socketmodule.c	2013-08-12 03:36:26.823134479 +0900
+@@ -3419,7 +3419,7 @@
+ 
+ 
+ /* Python interface to gethostbyaddr(IP). */
+-
++#undef HAVE_GETHOSTBYNAME_R
+ /*ARGSUSED*/
+ static PyObject *
+ socket_gethostbyaddr(PyObject *self, PyObject *args)
+diff -ru -x config.guess -x config.sub original/Python-2.7.3/Objects/stringlib/formatter.h archives/Python-2.7.3/Objects/stringlib/formatter.h
+--- original/Python-2.7.3/Objects/stringlib/formatter.h	2012-04-10 08:07:34.000000000 +0900
++++ archives/Python-2.7.3/Objects/stringlib/formatter.h	2013-08-12 02:32:05.092408374 +0900
+@@ -639,13 +639,7 @@
+ get_locale_info(int type, LocaleInfo *locale_info)
+ {
+     switch (type) {
+-    case LT_CURRENT_LOCALE: {
+-        struct lconv *locale_data = localeconv();
+-        locale_info->decimal_point = locale_data->decimal_point;
+-        locale_info->thousands_sep = locale_data->thousands_sep;
+-        locale_info->grouping = locale_data->grouping;
+-        break;
+-    }
++    case LT_CURRENT_LOCALE:
+     case LT_DEFAULT_LOCALE:
+         locale_info->decimal_point = ".";
+         locale_info->thousands_sep = ",";
+diff -ru -x config.guess -x config.sub original/Python-2.7.3/Objects/stringlib/localeutil.h archives/Python-2.7.3/Objects/stringlib/localeutil.h
+--- original/Python-2.7.3/Objects/stringlib/localeutil.h	2012-04-10 08:07:34.000000000 +0900
++++ archives/Python-2.7.3/Objects/stringlib/localeutil.h	2013-08-12 02:29:56.763919503 +0900
+@@ -202,9 +202,9 @@
+                                   Py_ssize_t n_digits,
+                                   Py_ssize_t min_width)
+ {
+-        struct lconv *locale_data = localeconv();
+-        const char *grouping = locale_data->grouping;
+-        const char *thousands_sep = locale_data->thousands_sep;
++        // struct lconv *locale_data = localeconv();
++        const char *grouping = "\3";
++        const char *thousands_sep = ",";
+ 
+         return _Py_InsertThousandsGrouping(buffer, n_buffer, digits, n_digits,
+                                            min_width, grouping, thousands_sep);
+diff -ru -x config.guess -x config.sub original/Python-2.7.3/Python/pystrtod.c archives/Python-2.7.3/Python/pystrtod.c
+--- original/Python-2.7.3/Python/pystrtod.c	2012-04-10 08:07:35.000000000 +0900
++++ archives/Python-2.7.3/Python/pystrtod.c	2013-08-12 02:31:43.253017321 +0900
+@@ -138,8 +138,8 @@
+ 
+     fail_pos = NULL;
+ 
+-    locale_data = localeconv();
+-    decimal_point = locale_data->decimal_point;
++    // locale_data = localeconv();
++    decimal_point = ".";
+     decimal_point_len = strlen(decimal_point);
+ 
+     assert(decimal_point_len != 0);
+@@ -375,8 +375,8 @@
+ Py_LOCAL_INLINE(void)
+ change_decimal_from_locale_to_dot(char* buffer)
+ {
+-    struct lconv *locale_data = localeconv();
+-    const char *decimal_point = locale_data->decimal_point;
++    //struct lconv *locale_data = localeconv();
++    const char *decimal_point = ".";
+ 
+     if (decimal_point[0] != '.' || decimal_point[1] != 0) {
+         size_t decimal_point_len = strlen(decimal_point);

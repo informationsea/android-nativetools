@@ -1,0 +1,12 @@
+diff -ru -x config.guess -x config.sub original/bash-4.1/externs.h archives/bash-4.1/externs.h
+--- original/bash-4.1/externs.h	2009-12-23 05:56:47.000000000 +0900
++++ archives/bash-4.1/externs.h	2013-08-11 22:20:49.827550779 +0900
+@@ -179,7 +179,7 @@
+ extern void print_clock_t ();
+ 
+ /* Declarations for functions defined in lib/sh/fdprintf.c */
+-extern void fdprintf __P((int, const char *, ...))  __attribute__((__format__ (printf, 2, 3)));
++// extern void fdprintf __P((int, const char *, ...))  __attribute__((__format__ (printf, 2, 3)));
+ 
+ /* Declarations for functions defined in lib/sh/fmtulong.c */
+ #define FL_PREFIX     0x01    /* add 0x, 0X, or 0 prefix as appropriate */
