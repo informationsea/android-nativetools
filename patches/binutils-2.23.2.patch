@@ -1,0 +1,13 @@
+archives/binutils-2.23.2 のみに存在: android
+diff -ru -x config.guess -x config.sub original/binutils-2.23.2/libiberty/getpagesize.c archives/binutils-2.23.2/libiberty/getpagesize.c
+--- original/binutils-2.23.2/libiberty/getpagesize.c	2005-03-28 11:09:01.000000000 +0900
++++ archives/binutils-2.23.2/libiberty/getpagesize.c	2013-08-13 00:51:44.075479060 +0900
+@@ -20,7 +20,7 @@
+ 
+ */
+ 
+-#ifndef VMS
++#if 0
+ 
+ #include "config.h"
+ 

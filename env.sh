@@ -8,9 +8,3 @@ export AR=arm-linux-androideabi-ar
 export RANLIB=arm-linux-androideabi-ranlib
 export HOSTCONFIG=arm-linux-androideabi
 
-mkdir -p archives
-mkdir -p build
-
-function android-configure() {
-  ./configure --prefix $PREFIX --host $HOSTCONFIG "$@"
-}
