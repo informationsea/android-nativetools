@@ -1,0 +1,13 @@
+diff -ur original/mpfr-3.1.2/src/mpfr-impl.h build/mpfr-3.1.2/src/mpfr-impl.h
+--- original/mpfr-3.1.2/src/mpfr-impl.h	2013-03-14 00:37:36.000000000 +0900
++++ build/mpfr-3.1.2/src/mpfr-impl.h	2014-04-28 23:38:00.869320114 +0900
+@@ -1131,7 +1131,7 @@
+   } while (0)
+ 
+ /* Needs <locale.h> */
+-#ifdef HAVE_LOCALE_H
++#if 0
+ #include <locale.h>
+ /* Warning! In case of signed char, the value of MPFR_DECIMAL_POINT may
+    be negative (the ISO C99 does not seem to forbid negative values). */
+

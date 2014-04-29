@@ -1,0 +1,24 @@
+diff -ur original/bash-4.3/bashline.c build/bash-4.3/bashline.c
+--- original/bash-4.3/bashline.c	2014-02-10 09:56:58.000000000 +0900
++++ build/bash-4.3/bashline.c	2014-04-28 23:07:46.650339827 +0900
+@@ -2379,7 +2379,7 @@
+      const char *text;
+      int state;
+ {
+-#if defined (__WIN32__) || defined (__OPENNT) || !defined (HAVE_GRP_H)
++#if 1
+   return ((char *)NULL);
+ #else
+   static char *gname = (char *)NULL;
+diff -ur original/bash-4.3/lib/sh/oslib.c build/bash-4.3/lib/sh/oslib.c
+--- original/bash-4.3/lib/sh/oslib.c	2013-10-14 22:12:57.000000000 +0900
++++ build/bash-4.3/lib/sh/oslib.c	2014-04-28 23:11:03.293394034 +0900
+@@ -233,7 +233,7 @@
+ }
+ #endif /* !HAVE_KILLPG */
+ 
+-#if !defined (HAVE_MKFIFO) && defined (PROCESS_SUBSTITUTION)
++#if 0
+ int
+ mkfifo (path, mode)
+      char *path;
