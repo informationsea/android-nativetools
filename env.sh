@@ -1,4 +1,5 @@
 export PATH=export PATH=/data/toolchain-arm/bin:/data/porg/bin/:$PATH
+export PKG_CONFIG_PATH=/data/data/jackpal.androidterm/app_HOME/local/lib/pkgconfig
 
 export PREFIX=/data/data/jackpal.androidterm/app_HOME/local
 export CC=arm-linux-androideabi-gcc

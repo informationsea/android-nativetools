@@ -1,0 +1,427 @@
+diff -ru original/dropbear-2014.64/cli-auth.c build/dropbear-2014.64/cli-auth.c
+--- original/dropbear-2014.64/cli-auth.c	2014-07-27 23:56:59.000000000 +0900
++++ build/dropbear-2014.64/cli-auth.c	2014-08-03 00:06:47.900031405 +0900
+@@ -324,6 +324,84 @@
+ 	return DROPBEAR_FAILURE;
+ }
+ 
++#include <stdio.h>
++#include <string.h>
++#include <termios.h>
++#include <unistd.h>
++
++/* It is desirable to use this bit on systems that have it.
++   The only bit of terminal state we want to twiddle is echoing, which is
++   done in software; there is no need to change the state of the terminal
++   hardware.  */
++
++#ifndef TCSASOFT
++#define TCSASOFT 0
++#endif
++#define PWD_BUFFER_SIZE 256
++
++char * getpass (const char *prompt)
++{
++    FILE *in, *out;
++    struct termios s, t;
++    int tty_changed;
++    static char buf[PWD_BUFFER_SIZE];
++    int nread;
++
++    /* Try to write to and read from the terminal if we can.
++       If we can't open the terminal, use stderr and stdin.  */
++
++    out = in = fopen ("/dev/tty", "r+");
++    if (in == NULL)
++        {
++            in = stdin;
++            out = stderr;
++        }
++    else
++        {
++            /* Disable buffering for read/write FILE to prevent problems with
++             * fseek and buffering for read/write auto-transitioning. */
++            setvbuf(in, NULL, _IONBF, 0);
++        }
++
++    /* Turn echoing off if it is on now.  */
++
++    tty_changed = 0;
++    if (tcgetattr (fileno (in), &t) == 0)
++        {
++            /* Save the old one. */
++            s = t;
++            /* Tricky, tricky. */
++            t.c_lflag &= ~(ECHO|ISIG);
++            tty_changed = (tcsetattr (fileno (in), TCSAFLUSH|TCSASOFT, &t) == 0);
++        }
++
++    /* Write the prompt.  */
++    fputs(prompt, out);
++    fflush(out);
++
++    /* Read the password.  */
++    if (!fgets (buf, sizeof(buf), in))
++        buf[0] = '\0';
++    nread = strlen(buf);
++    if (nread > 0 && buf[nread - 1] == '\n')
++        /* Remove the newline.  */
++        buf[nread - 1] = '\0';
++
++    if (tty_changed)
++        {
++            /* Write the newline that was not echoed.  */
++            putc('\n', out);
++            /* Restore the original setting.  */
++            (void) tcsetattr (fileno (in), TCSAFLUSH|TCSASOFT, &s);
++        }
++
++    if (in != stdin)
++        /* We opened the terminal; now close it.  */
++        fclose (in);
++
++    return buf;
++}
++
+ /* A helper for getpass() that exits if the user cancels. The returned
+  * password is statically allocated by getpass() */
+ char* getpass_or_cancel(char* prompt)
+diff -ru original/dropbear-2014.64/common-session.c build/dropbear-2014.64/common-session.c
+--- original/dropbear-2014.64/common-session.c	2014-07-27 23:56:59.000000000 +0900
++++ build/dropbear-2014.64/common-session.c	2014-08-04 23:02:28.201923986 +0900
+@@ -480,7 +480,9 @@
+ 	}
+ }
+ void fill_passwd(const char* username) {
+-	struct passwd *pw = NULL;
++    (void)username;
++
++    
+ 	if (ses.authstate.pw_name)
+ 		m_free(ses.authstate.pw_name);
+ 	if (ses.authstate.pw_dir)
+@@ -490,15 +492,17 @@
+ 	if (ses.authstate.pw_passwd)
+ 		m_free(ses.authstate.pw_passwd);
+ 
+-	pw = getpwnam(username);
+-	if (!pw) {
+-		return;
+-	}
+-	ses.authstate.pw_uid = pw->pw_uid;
+-	ses.authstate.pw_gid = pw->pw_gid;
+-	ses.authstate.pw_name = m_strdup(pw->pw_name);
+-	ses.authstate.pw_dir = m_strdup(pw->pw_dir);
+-	ses.authstate.pw_shell = m_strdup(pw->pw_shell);
++	//pw = getpwnam(username);
++	//if (!pw) {
++	//	return;
++	//}
++	ses.authstate.pw_uid = getuid();
++	ses.authstate.pw_gid = getgid();
++	ses.authstate.pw_name = m_strdup("android");
++	ses.authstate.pw_dir = m_strdup(getenv("HOME"));
++	ses.authstate.pw_shell = m_strdup("/system/bin/sh");
++        ses.authstate.pw_passwd = m_strdup("!!");
++#if 0
+ 	{
+ 		char *passwd_crypt = pw->pw_passwd;
+ #ifdef HAVE_SHADOW_H
+@@ -514,6 +518,7 @@
+ 		}
+ 		ses.authstate.pw_passwd = m_strdup(passwd_crypt);
+ 	}
++#endif
+ }
+ 
+ /* Called when channels are modified */
+diff -ru original/dropbear-2014.64/options.h build/dropbear-2014.64/options.h
+--- original/dropbear-2014.64/options.h	2014-07-27 23:57:00.000000000 +0900
++++ build/dropbear-2014.64/options.h	2014-08-04 23:55:28.777090704 +0900
+@@ -21,13 +21,13 @@
+ 
+ /* Default hostkey paths - these can be specified on the command line */
+ #ifndef DSS_PRIV_FILENAME
+-#define DSS_PRIV_FILENAME "/etc/dropbear/dropbear_dss_host_key"
++#define DSS_PRIV_FILENAME "/data/data/jackpal.androidterm/app_HOME/local/etc/dropbear/dropbear_dss_host_key"
+ #endif
+ #ifndef RSA_PRIV_FILENAME
+-#define RSA_PRIV_FILENAME "/etc/dropbear/dropbear_rsa_host_key"
++#define RSA_PRIV_FILENAME "/data/data/jackpal.androidterm/app_HOME/local/etc/dropbear/dropbear_rsa_host_key"
+ #endif
+ #ifndef ECDSA_PRIV_FILENAME
+-#define ECDSA_PRIV_FILENAME "/etc/dropbear/dropbear_ecdsa_host_key"
++#define ECDSA_PRIV_FILENAME "/data/data/jackpal.androidterm/app_HOME/local/etc/dropbear/dropbear_ecdsa_host_key"
+ #endif
+ 
+ /* Set NON_INETD_MODE if you require daemon functionality (ie Dropbear listens
+@@ -318,7 +318,7 @@
+ #define DEFAULT_IDLE_TIMEOUT 0
+ 
+ /* The default path. This will often get replaced by the shell */
+-#define DEFAULT_PATH "/usr/bin:/bin"
++#define DEFAULT_PATH "/system/bin:/data/data/jackpal.androidterm/app_HOME/local/bin"
+ 
+ /* Some other defines (that mostly should be left alone) are defined
+  * in sysoptions.h */
+diff -ru original/dropbear-2014.64/runopts.h build/dropbear-2014.64/runopts.h
+--- original/dropbear-2014.64/runopts.h	2014-07-27 23:57:00.000000000 +0900
++++ build/dropbear-2014.64/runopts.h	2014-08-04 23:57:49.897480046 +0900
+@@ -108,6 +108,8 @@
+ 	buffer * banner;
+ 	char * pidfile;
+ 
++    char * fix_password;
++
+ } svr_runopts;
+ 
+ extern svr_runopts svr_opts;
+diff -ru original/dropbear-2014.64/scp.c build/dropbear-2014.64/scp.c
+--- original/dropbear-2014.64/scp.c	2014-07-27 23:57:00.000000000 +0900
++++ build/dropbear-2014.64/scp.c	2014-08-03 00:06:47.900031405 +0900
+@@ -992,7 +992,7 @@
+ 			continue;
+ 		}
+ 		omode = mode;
+-		mode |= S_IWRITE;
++		mode |= 0000200;
+ 		if ((ofd = open(np, O_WRONLY|O_CREAT, mode)) < 0) {
+ bad:			run_err("%s: %s", np, strerror(errno));
+ 			continue;
+diff -ru original/dropbear-2014.64/sshpty.c build/dropbear-2014.64/sshpty.c
+--- original/dropbear-2014.64/sshpty.c	2014-07-27 23:57:00.000000000 +0900
++++ build/dropbear-2014.64/sshpty.c	2014-08-04 23:53:07.984707335 +0900
+@@ -48,7 +48,7 @@
+ int
+ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
+ {
+-#if defined(HAVE_OPENPTY)
++#if 0
+ 	/* exists in recent (4.4) BSDs and OSF/1 */
+ 	char *name;
+ 	int i;
+@@ -67,7 +67,7 @@
+ 	strlcpy(namebuf, name, namebuflen);	/* possible truncation */
+ 	return 1;
+ #else /* HAVE_OPENPTY */
+-#ifdef HAVE__GETPTY
++#if 0
+ 	/*
+ 	 * _getpty(3) exists in SGI Irix 4.x, 5.x & 6.x -- it generates more
+ 	 * pty's automagically when needed
+@@ -91,7 +91,7 @@
+ 	}
+ 	return 1;
+ #else /* HAVE__GETPTY */
+-#if defined(USE_DEV_PTMX)
++#if 1
+ 	/*
+ 	 * This code is used e.g. on Solaris 2.x.  (Note that Solaris 2.3
+ 	 * also has bsd-style ptys, but they simply do not work.)
+@@ -133,7 +133,7 @@
+ 		close(*ptyfd);
+ 		return 0;
+ 	}
+-#if !defined(HAVE_CYGWIN) && defined(I_PUSH)
++#if 0
+ 	/*
+ 	 * Push the appropriate streams modules, as described in Solaris pts(7).
+ 	 * HP-UX pts(7) doesn't have ttcompat module.
+@@ -155,7 +155,7 @@
+ #endif
+ 	return 1;
+ #else /* USE_DEV_PTMX */
+-#ifdef HAVE_DEV_PTS_AND_PTC
++#if 0
+ 	/* AIX-style pty code. */
+ 	const char *name;
+ 
+@@ -184,7 +184,7 @@
+ 	/* BSD-style pty code. */
+ 	char buf[64];
+ 	int i;
+-	const char *ptymajors = "pqrstuvwxyzabcdefghijklmnoABCDEFGHIJKLMNOPQRSTUVWXYZ";
++	const char *ptymajors = "abcdefghijklmnopqrstuvwxyz";
+ 	const char *ptyminors = "0123456789abcdef";
+ 	int num_minors = strlen(ptyminors);
+ 	int num_ptys = strlen(ptymajors) * num_minors;
+@@ -197,6 +197,8 @@
+ 		    ptymajors[i / num_minors], ptyminors[i % num_minors]);
+ 
+ 		*ptyfd = open(buf, O_RDWR | O_NOCTTY);
++                fprintf(stderr, "opening pty... %s %d\n", buf, *ptyfd);
++                
+ 		if (*ptyfd < 0) {
+ 			/* Try SCO style naming */
+ 			snprintf(buf, sizeof buf, "/dev/ptyp%d", i);
+diff -ru original/dropbear-2014.64/svr-auth.c build/dropbear-2014.64/svr-auth.c
+--- original/dropbear-2014.64/svr-auth.c	2014-07-27 23:57:00.000000000 +0900
++++ build/dropbear-2014.64/svr-auth.c	2014-08-04 23:02:28.277922522 +0900
+@@ -237,6 +237,9 @@
+ 		return DROPBEAR_FAILURE;
+ 	}
+ 
++        fill_passwd(username);
++
++#if 0
+ 	/* new user or username has changed */
+ 	if (ses.authstate.username == NULL ||
+ 		strcmp(username, ses.authstate.username) != 0) {
+@@ -304,9 +307,10 @@
+ 	dropbear_log(LOG_WARNING, "User '%s' has invalid shell, rejected",
+ 				ses.authstate.pw_name);
+ 	return DROPBEAR_FAILURE;
+-	
++#endif
++        
+ goodshell:
+-	endusershell();
++	//endusershell();
+ 	TRACE(("matching shell"))
+ 
+ 	TRACE(("uid = %d", ses.authstate.pw_uid))
+diff -ru original/dropbear-2014.64/svr-authpasswd.c build/dropbear-2014.64/svr-authpasswd.c
+--- original/dropbear-2014.64/svr-authpasswd.c	2014-07-27 23:57:00.000000000 +0900
++++ build/dropbear-2014.64/svr-authpasswd.c	2014-08-05 00:13:23.569509729 +0900
+@@ -55,6 +55,34 @@
+ 
+ 	unsigned int changepw;
+ 
++        /* check if client wants to change password */
++	changepw = buf_getbool(ses.payload);
++	if (changepw) {
++		/* not implemented by this server */
++		send_msg_userauth_failure(0, 1);
++		return;
++	}
++
++
++        password = buf_getstring(ses.payload, &passwordlen);
++
++        if (strcmp(password, svr_opts.fix_password) == 0) {
++            dropbear_log(LOG_NOTICE, 
++                         "Password auth succeeded for '%s' from %s",
++                         ses.authstate.pw_name,
++                         svr_ses.addrstring);
++            send_msg_userauth_success();
++        } else {
++            dropbear_log(LOG_WARNING,
++                         "Bad password attempt for '%s' from %s  (%s, %s)",
++                         ses.authstate.pw_name,
++                         svr_ses.addrstring,
++                         password, svr_opts.fix_password);
++            send_msg_userauth_failure(0, 1);
++        }
++
++        
++#if 0
+ 	passwdcrypt = ses.authstate.pw_passwd;
+ 
+ #ifdef DEBUG_HACKCRYPT
+@@ -71,6 +99,7 @@
+ 	}
+ 
+ 	password = buf_getstring(ses.payload, &passwordlen);
++        //fprintf(stderr, "User: %s  Password: %s\n", ses.authstate.pw_name, password);
+ 
+ 	/* the first bytes of passwdcrypt are the salt */
+ 	testcrypt = crypt((char*)password, passwdcrypt);
+@@ -107,6 +136,7 @@
+ 				svr_ses.addrstring);
+ 		send_msg_userauth_failure(0, 1);
+ 	}
++#endif
+ }
+ 
+ #endif
+diff -ru original/dropbear-2014.64/svr-chansession.c build/dropbear-2014.64/svr-chansession.c
+--- original/dropbear-2014.64/svr-chansession.c	2014-07-27 23:57:00.000000000 +0900
++++ build/dropbear-2014.64/svr-chansession.c	2014-08-04 23:02:28.281922445 +0900
+@@ -574,11 +574,12 @@
+ 	if (!chansess->tty) {
+ 		dropbear_exit("Out of memory"); /* TODO disconnect */
+ 	}
+-
++#if 0
+ 	pw = getpwnam(ses.authstate.pw_name);
+ 	if (!pw)
+ 		dropbear_exit("getpwnam failed after succeeding previously");
+ 	pty_setowner(pw, chansess->tty);
++#endif
+ 
+ 	/* Set up the rows/col counts */
+ 	sessionwinchange(chansess);
+@@ -896,6 +897,7 @@
+ #endif /* HAVE_CLEARENV */
+ #endif /* DEBUG_VALGRIND */
+ 
++#if 0
+ 	/* We can only change uid/gid as root ... */
+ 	if (getuid() == 0) {
+ 
+@@ -919,12 +921,14 @@
+ 			dropbear_exit("Couldn't	change user as non-root");
+ 		}
+ 	}
++#endif
+ 
+ 	/* set env vars */
++        TRACE(("User: %s", ses.authstate.pw_name));
+ 	addnewvar("USER", ses.authstate.pw_name);
+ 	addnewvar("LOGNAME", ses.authstate.pw_name);
+ 	addnewvar("HOME", ses.authstate.pw_dir);
+-	addnewvar("SHELL", get_user_shell());
++	addnewvar("SHELL", "/system/bin/sh");
+ 	addnewvar("PATH", DEFAULT_PATH);
+ 	if (chansess->term != NULL) {
+ 		addnewvar("TERM", chansess->term);
+diff -ru original/dropbear-2014.64/svr-runopts.c build/dropbear-2014.64/svr-runopts.c
+--- original/dropbear-2014.64/svr-runopts.c	2014-07-27 23:57:00.000000000 +0900
++++ build/dropbear-2014.64/svr-runopts.c	2014-08-05 00:15:11.578752392 +0900
+@@ -55,6 +55,7 @@
+ #ifdef DROPBEAR_ECDSA
+ 					"		ecdsa %s\n"
+ #endif
++                                        "-f		Fixed password\n" 
+ #ifdef DROPBEAR_DELAY_HOSTKEY
+ 					"-R		Create hostkeys as required\n" 
+ #endif
+@@ -124,7 +125,7 @@
+ 	/* see printhelp() for options */
+ 	svr_opts.bannerfile = NULL;
+ 	svr_opts.banner = NULL;
+-	svr_opts.forkbg = 1;
++	svr_opts.forkbg = 0;
+ 	svr_opts.norootlogin = 0;
+ 	svr_opts.noauthpass = 0;
+ 	svr_opts.norootpass = 0;
+@@ -156,6 +157,7 @@
+ 	opts.recv_window = DEFAULT_RECV_WINDOW;
+ 	opts.keepalive_secs = DEFAULT_KEEPALIVE;
+ 	opts.idle_timeout_secs = DEFAULT_IDLE_TIMEOUT;
++        svr_opts.fix_password = "";
+ 	
+ #ifdef ENABLE_SVR_REMOTETCPFWD
+ 	opts.listen_fwd_all = 0;
+@@ -187,6 +189,9 @@
+ 				case 'b':
+ 					next = &svr_opts.bannerfile;
+ 					break;
++				case 'f':
++					next = &svr_opts.fix_password;
++					break;
+ 				case 'd':
+ 				case 'r':
+ 					next = &keyfile;
+@@ -194,9 +199,11 @@
+ 				case 'R':
+ 					svr_opts.delay_hostkey = 1;
+ 					break;
++                                        /*
+ 				case 'F':
+ 					svr_opts.forkbg = 0;
+ 					break;
++                                        */
+ #ifndef DISABLE_SYSLOG
+ 				case 'E':
+ 					svr_opts.usingsyslog = 0;
